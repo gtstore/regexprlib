@@ -9,6 +9,7 @@ int main(int argc, char *argv[]) {
 	std::string str{ "baaaaaaaaaaababaaabcccccxycccccc" };
     //std::string str{ "cccddd" };
 
+
 	auto match1 = re.match(str);
     auto match0 = re.full_match(str);
 		

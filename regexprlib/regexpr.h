@@ -6,6 +6,7 @@
 #include <vector>
 #include <optional>
 #include <string_view>
+#include <sstream>
 
 class xsyntax {
 public:
@@ -73,7 +74,13 @@ private:
     public:
         Split(state_ptr left, state_ptr right) : left{left}, right{right} {}
         void concat(state_ptr second) override { if (right == Match::get_match()) right = second; }
-        std::pair<state_ptr, state_ptr> next() override { return {left, right}; }
+        std::pair<state_ptr, state_ptr> next() override {
+            if (!visited) {
+                visited = true;
+                return {left, right};
+            }
+            else return {nullptr, nullptr};
+        }
         std::pair<state_ptr, state_ptr> next(std::string_view::iterator &it, std::string_view::iterator end, int &match) override {
             if (last != it) {
                 last = it;
@@ -86,19 +93,22 @@ private:
         }
 
         std::string stringify() override {
-            return "|split|";
+            std::stringstream ss;
+            ss << reinterpret_cast<void*>(this);
+            return "|split|" + ss.str();
         }
 
     private:
         state_ptr left{};
         state_ptr right{};
         std::string_view::iterator last{};
+        bool visited{false};
     };
 
     class Dummy : public IState {
     public:
         Dummy() = default;
-        void concat(state_ptr second) override { this->out = second; }
+        void concat(state_ptr second) override { out = second; }
         std::pair<state_ptr, state_ptr> next() override { return {out, nullptr}; }
         std::pair<state_ptr, state_ptr> next(std::string_view::iterator &it, std::string_view::iterator end, int &match) override {
             return {out, nullptr};

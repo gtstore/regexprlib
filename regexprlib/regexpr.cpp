@@ -156,7 +156,6 @@ void RegExpr::compile(std::string_view pattern) {
     this->pattern = pattern;
 }
 
-
 RegExpr::state_ptr RegExpr::list(state_ptr dummy) {
 
     Lex::next();
@@ -184,6 +183,7 @@ RegExpr::state_ptr RegExpr::element() {
 
         if (Lex::p == ')') {
             //last_group = get_last_group(first_group);
+            concat(first_group, last_group);
             Lex::next();
             /*nfa[state].n1 = nfa[state].n2 = state + 1;
             nfa.emplace_back();
@@ -317,7 +317,7 @@ std::string RegExpr::stringify_tree() {
                                           },
                                           [&last, &break_cycle](state_ptr &e) {
                                               auto *branches = new std::list<state_ptr>;
-                                              if (!break_cycle) {
+                                              //if (!break_cycle) {
                                                   if (e != Match::get_match()) {
                                                       std::pair<state_ptr, state_ptr> next{};
                                                       next = e->next();
@@ -327,7 +327,7 @@ std::string RegExpr::stringify_tree() {
                                                       if (next.second) branches->push_back(next.second);
                                                       last = e;
                                                   }
-                                              } else break_cycle = false;
+                                              //} else break_cycle = false;
                                               return std::make_pair(branches->cbegin(), branches->cend());
                                           },
                                           [](state_ptr &e) { return true; }, // whether simplified horizontal layout can be used

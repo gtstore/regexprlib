@@ -36,7 +36,9 @@ private:
         virtual ~IState() = default;
         virtual void concat(state_ptr second) = 0;
         virtual std::pair<state_ptr, state_ptr> next() = 0;
-        virtual std::pair<state_ptr, state_ptr> next(std::string_view::iterator &it, std::string_view::iterator end, int &match) = 0;
+        virtual std::pair<state_ptr, state_ptr> next(std::string_view::iterator &it, std::string_view::iterator begin, std::string_view::iterator end) = 0;
+        virtual state_ptr consume(std::string_view::iterator &it) = 0;
+        virtual void reset() = 0;
         virtual std::string stringify() = 0;
     };
 
@@ -44,6 +46,7 @@ private:
     public:
         explicit Consume(const char ch) : ch{ch}, out{} {}
 
+        void reset() override {}
         void concat(state_ptr second) override {
             if (out == nullptr || out == Match::get_match()) {
                 out = second;
@@ -51,14 +54,23 @@ private:
             } else out->concat(second);
         }
         std::pair<state_ptr, state_ptr> next() override { return {out, nullptr}; }
-        std::pair<state_ptr, state_ptr> next(std::string_view::iterator &it, std::string_view::iterator end, int &match) override {
+        std::pair<state_ptr, state_ptr> next(std::string_view::iterator &it, std::string_view::iterator begin, std::string_view::iterator end) override {
             if (it == end) return {nullptr, nullptr};
+
+            std::string_view::iterator last = it;
+            if (state_ptr result = consume(it))
+                return {result, nullptr};
+            else {
+                it = last;
+                return {nullptr, nullptr};
+            }
+        }
+        state_ptr consume(std::string_view::iterator &it) override {
             if (ch == *it) {
                 ++it;
-                ++match;
-                return {out, nullptr};
+                return out->consume(it);
             }
-            return {nullptr, nullptr};
+            else return nullptr;
         }
 
         std::string stringify() override {
@@ -73,16 +85,20 @@ private:
     class Split : public IState {
     public:
         Split(state_ptr left, state_ptr right) : left{left}, right{right} {}
+
+        void reset() override { visited = false; }
         void concat(state_ptr second) override { if (right == Match::get_match()) right = second; }
         std::pair<state_ptr, state_ptr> next() override {
             if (!visited) {
                 visited = true;
                 return {left, right};
+            } else {
+                visited = false;
+                return {nullptr, nullptr};
             }
-            else return {nullptr, nullptr};
         }
-        std::pair<state_ptr, state_ptr> next(std::string_view::iterator &it, std::string_view::iterator end, int &match) override {
-            if (last != it) {
+        std::pair<state_ptr, state_ptr> next(std::string_view::iterator &it, std::string_view::iterator begin, std::string_view::iterator end) override {
+            if (it != last || it == end) {
                 last = it;
                 return {left, right};
             } else {
@@ -90,7 +106,16 @@ private:
                 return {nullptr, nullptr};
             }
             return {left, right};
+//            if (!visited) {
+//                visited = true;
+//                return {left, right};
+//            } else {
+//                visited = false;
+//                return {nullptr, nullptr};
+//            }
+
         }
+        state_ptr consume(std::string_view::iterator &it) override { return this; }
 
         std::string stringify() override {
             std::stringstream ss;
@@ -108,11 +133,14 @@ private:
     class Dummy : public IState {
     public:
         Dummy() = default;
+
+        void reset() override {}
         void concat(state_ptr second) override { out = second; }
         std::pair<state_ptr, state_ptr> next() override { return {out, nullptr}; }
-        std::pair<state_ptr, state_ptr> next(std::string_view::iterator &it, std::string_view::iterator end, int &match) override {
+        std::pair<state_ptr, state_ptr> next(std::string_view::iterator &it, std::string_view::iterator begin, std::string_view::iterator end) override {
             return {out, nullptr};
         }
+        state_ptr consume(std::string_view::iterator &it) override { return this; }
 
         std::string stringify() override {
             return "|dummy|";
@@ -132,12 +160,13 @@ private:
         Match(Match &&) = delete;
         Match &operator=(Match &&) = delete;
 
+        void reset() override {}
         void concat(state_ptr second) override {}
         std::pair<state_ptr, state_ptr> next() override { return {get_match(), nullptr}; }
-        std::pair<state_ptr, state_ptr> next(std::string_view::iterator &it,
-                                                     std::string_view::iterator end, int &match) override {
+        std::pair<state_ptr, state_ptr> next(std::string_view::iterator &it, std::string_view::iterator begin, std::string_view::iterator end) override {
             return {get_match(), nullptr};
         }
+        state_ptr consume(std::string_view::iterator &it) override { return this; }
 
         static const state_ptr get_match() {
             static const state_ptr instance{new Match{}};
@@ -174,7 +203,7 @@ private:
     state_ptr repeat(state_ptr first_group, state_ptr last_group);
     state_ptr new_dummy();
     state_ptr get_last_group(state_ptr first_group);
-    int run(std::string_view::iterator &it, std::string_view::iterator end);
+    std::string_view::iterator run(std::string_view::iterator begin, std::string_view::iterator end);
 
 private:
     state_ptr nfa;

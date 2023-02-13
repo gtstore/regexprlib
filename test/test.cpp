@@ -5,9 +5,12 @@ int main(int argc, char *argv[]) {
 	//RegExpr re{ "(a|b)*" };
 	//std::string str{ "cccabvvvxy" };
 	//RegExpr re{ "(a|b)*c*" };
-    RegExpr re{ "(ab)*" };
-	std::string str{ "baaaaaaaaaaababaaabcccccxycccccc" };
-    //std::string str{ "cccddd" };
+    RegExpr re{ "(ab|cd)*" };
+	std::string str{ "ababcdabcdcdcdab" };
+    //std::string str{ "ababa" };
+
+//    RegExpr re{ "fgh" };
+//    std::string str{ "fghfghf" };
 
 	auto match1 = re.match(str);
     auto match0 = re.full_match(str);

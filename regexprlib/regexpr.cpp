@@ -250,13 +250,15 @@ RegExpr::state_ptr RegExpr::value() {
     return letter(Lex::p);
 }
 
-int RegExpr::run(std::string_view::iterator &it, std::string_view::iterator end) {
+std::string_view::iterator RegExpr::run(const std::string_view::iterator begin, const std::string_view::iterator end) {
 
-    if (!nfa) return -1;
+    //if (!nfa) return -1;
 
+    auto it = begin;
     int match{0};
     std::stack<state_ptr> stack;
     state_ptr start = nfa;
+    start->reset();
 
     while (start != nullptr || !stack.empty()) {
         if (!stack.empty()) {
@@ -264,15 +266,16 @@ int RegExpr::run(std::string_view::iterator &it, std::string_view::iterator end)
             stack.pop();
         }
         while (start != nullptr) {
-            auto [left, right] = start->next(it, end, match);
+            auto [left, right] = start->next(it, begin, end);
+
             if (right) stack.push(right);
             if (left == Match::get_match())
-                return match;
+                return it;
             start = left;
         }
     }
-    ++it;
-    return -1;
+    //++it;
+    return nullptr;
 }
 
 std::optional<std::string_view> RegExpr::match(std::string_view str) {
@@ -281,8 +284,8 @@ std::optional<std::string_view> RegExpr::match(std::string_view str) {
     auto end = str.end();
     int m{-1};
 
-    while (m < 0 && it != end)
-        m = run(it, end);
+//    while (m < 0 && it != end)
+//        m = run(it, end);
 
     if (m < 0) return std::nullopt;
     return std::string_view{it - m, it};
@@ -290,17 +293,25 @@ std::optional<std::string_view> RegExpr::match(std::string_view str) {
 
 std::vector<std::string_view> RegExpr::full_match(std::string_view str) {
 
-    auto it = str.begin();
+    auto begin = str.begin();
     auto end = str.end();
     std::vector<std::string_view> result;
-    int m{0};
+    //int m{0};
 
-    while (it != end) {
-        m = run(it, end);
-        if (m >= 0) {
-            result.emplace_back(it - m, it);
-            //++it;
+    while (begin != end) {
+        auto m = run(begin, end);
+        if (!m) {
+            begin++;
+            continue;
         }
+        auto count = std::distance(begin, m);
+        result.emplace_back(begin, begin+count);
+        begin = m;
+        begin += !count;
+
+            //result.emplace_back(it + m, it);
+
+            //++it;
     }
     return result;
 }
